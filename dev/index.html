@@ -1,0 +1,185 @@
+<!doctype html>
+
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>&lt;my-element> Demo</title>
+    <script type="module" src="../gantt-chart.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+<style>
+          @media print{@page {size: landscape}}
+
+      html {
+        -webkit-text-size-adjust: 100%;
+
+      }
+
+      body {
+        margin: 0;
+      }
+      p {
+        border: solid 1px blue;
+        
+      }
+
+
+      gantt-chart {
+        width: 1024px;
+
+      }
+    </style>
+  </head>
+  <body>
+    <label for="alwaysdisplaydays">Always display days</label>
+    <input type="checkbox" id="alwaysdisplaydays"><br/>
+    <label for="showlabel">Show label</label>
+    <input type="checkbox" id="showlabel"><br/>
+    <label for="showlabelinside">Show label inside</label>
+    <input type="checkbox" id="showlabelinside">
+    <gantt-chart id="gantt">
+    </gantt-chart>
+    <script type="text/javascript">
+
+      let cb = document.getElementById("alwaysdisplaydays");
+      var gantt = document.getElementById("gantt");
+      
+      cb.checked = gantt.alwaysDisplayDays;
+      cb.addEventListener("change", (ev) => {
+        gantt.alwaysDisplayDays = ev.target.checked
+      });
+
+      cb = document.getElementById("showlabel");
+      cb.checked = gantt.displayLabel;
+      cb.addEventListener("change", (ev) => {
+        gantt.displayLabel = ev.target.checked;
+      });
+
+      cb = document.getElementById("showlabelinside");
+      cb.checked = gantt.displayLabelInside;
+      cb.addEventListener("change", (ev) => {
+        gantt.displayLabelInside = ev.target.checked;
+      });
+      
+      gantt.startDate = new Date("2019-12-28T00:00:00");
+      gantt.endDate = new Date("2020-01-20T23:59:59");
+      var centralTask = {
+        id: 5, 
+        name: "Activity n°5", 
+        start: new Date("2020-01-05T00:00:00"), 
+        duration: 1, 
+        color: "green",
+        resources: [
+          {type: "chef",quantity: 1, duration: 1, start: new Date("2020-01-05T00:00:00")}
+        ]
+      };
+      centralTask.predecessors = [
+      // { type: 'FS', id: 1},
+      // { type: 'FS', id: 2},
+      // { type: 'FS', id: 3},
+      // { type: 'FS', id: 4},
+      // { type: 'FS', id: 6},
+      // { type: 'FS', id: 7},
+      // { type: 'FS', id: 8},
+      // { type: 'FS', id: 9},
+
+      //  { type: 'FF', id: 1},
+      //  { type: 'FF', id: 2},
+      //  { type: 'FF', id: 3},
+      //  { type: 'FF', id: 4},
+      //  { type: 'FF', id: 6},
+      //  { type: 'FF', id: 7},
+      //  { type: 'FF', id: 8},
+      //  { type: 'FF', id: 9},
+      
+      // { type: 'SS', id: 1},
+      // { type: 'SS', id: 2},
+      // { type: 'SS', id: 3},
+      // { type: 'SS', id: 4},
+      // { type: 'SS', id: 6},
+      // { type: 'SS', id: 7},
+      // { type: 'SS', id: 8},
+      // { type: 'SS', id: 9},
+
+      // { type: 'SF', id: 1},
+      // { type: 'SF', id: 2},
+      // { type: 'SF', id: 3},
+      // { type: 'SF', id: 4},
+      // { type: 'SF', id: 6},
+      // { type: 'SF', id: 7},
+      { type: 'SF', id: 8},
+      // { type: 'SF', id: 9}
+      ]
+      var data = [
+        {id: 1, name(){ return "fn Activity n°1"}, start: new Date("2020-01-01T12:00:00"), duration: 1, predecessors: [], color: "green", progress: 0.5},
+        {id: 2, isHeader: true, name: "Activity n°2", start: new Date("2020-01-04T12:00:00"), duration: 1, predecessors: [], color: "magenta"},
+        {id: 3, name: "Activity n°3", start: new Date("2020-01-06T00:00:00"), duration: 1, predecessors: [], color: "#DEDEDE"},
+        {id: 4, name: "Activity n°4", start: new Date("2020-01-10T00:00:00"), duration: 1, predecessors: [], color: "darkblue"},
+        centralTask,
+        {id: 6, name: "Activity n°6", start: new Date("2020-01-05T12:00:00"), duration: 1, predecessors: [], color: "green",resources: [
+          {type: "chef",quantity: 1, duration: 1, start: new Date("2020-01-05T12:00:00")}
+          ],
+          children: [4,5]
+        },
+        {id: 7, name: "Activity n°7", start: new Date("2020-01-10T00:00:00"), duration: 1, predecessors: [], color: "green"},
+        {id: 8, name: "Activity n°8", start: new Date("2020-01-01T12:00:00"), duration: 1, predecessors: [], color: "green"},
+        {id: 9, name: "Activity n°9", start: new Date("2020-01-04T14:00:00"), duration: 1, predecessors: [], color: "green",resources: [
+          {type: "chef",quantity: 3, duration: 1, start: new Date("2020-01-04T14:00:00")},
+          {type: "stagiaire",quantity: 1, duration: 1, start: new Date("2020-01-04T14:00:00")}
+        ]},
+      ];
+      /*
+      for(var i = 1; i <= 31; i++ ) {
+        data.push({
+          id: i,
+          name: "Activity n°" + i,
+          start: new Date("2020-01-" + ("00" + i).slice(-2) + "T00:00:00"),
+          duration: 1,
+          predecessors: i > 1 ? [{id:parseInt(Math.random()*30+1), type:  i%4 == 0 ? 'FS' : i%4 == 1 ? 'FF' : i%4 == 2 ? 'SF' : 'SS'}] : []
+        });
+      }
+      */
+      
+      gantt.activities = data;
+      gantt.capacities = [
+        {type: "chef", duration: 1.5, quantity: 4, start: new Date("2020-01-05T00:00:00")},
+        {type: "chef", duration: 1.5, quantity: 2, start: new Date("2020-01-07T00:00:00")}
+      ];
+      
+      setTimeout(() => {
+        //gantt.labelAttribute = "description";
+        //gantt.setAttribute("label-attribute", "description");
+      }, 5000);
+      
+
+//       (function() {
+//     document.onmousemove = handleMouseMove;
+//     function handleMouseMove(event) {
+//         var eventDoc, doc, body;
+
+//         event = event || window.event; // IE-ism
+
+//         // If pageX/Y aren't available and clientX/Y are,
+//         // calculate pageX/Y - logic taken from jQuery.
+//         // (This is to support old IE)
+//         if (event.pageX == null && event.clientX != null) {
+//             eventDoc = (event.target && event.target.ownerDocument) || document;
+//             doc = eventDoc.documentElement;
+//             body = eventDoc.body;
+
+//             event.pageX = event.clientX +
+//               (doc && doc.scrollLeft || body && body.scrollLeft || 0) -
+//               (doc && doc.clientLeft || body && body.clientLeft || 0);
+//             event.pageY = event.clientY +
+//               (doc && doc.scrollTop  || body && body.scrollTop  || 0) -
+//               (doc && doc.clientTop  || body && body.clientTop  || 0 );
+//         }
+
+//         // Use event.pageX / event.pageY here
+//         console.log(event.clientX + "/" + event.clientY);
+//     }
+// })();
+    </script>
+  </body>
+</html>

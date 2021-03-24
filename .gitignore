@@ -1,0 +1,45 @@
+node_modules
+.DS_Store
+debounce.d.ts
+debounce.d.ts.map
+debounce.js
+debounce.js.map
+gantt-chart copy.d.ts
+gantt-chart copy.d.ts.map
+gantt-chart copy.js
+gantt-chart copy.js.map
+gantt-chart.d.ts
+gantt-chart.d.ts.map
+gantt-chart.js
+gantt-chart.js.map
+gantt-chart.old.js
+gantt-chart.old.js.map
+gantt-chart2 copy.js
+gantt-chart2 copy.js.map
+gantt-chart2.js
+gantt-chart2.js.map
+gantt-common.d.ts
+gantt-common.d.ts.map
+gantt-common.js
+gantt-common.js.map
+gantt-constraint.d.ts
+gantt-constraint.d.ts.map
+gantt-constraint.js
+gantt-constraint.js.map
+gantt-header copy.d.ts
+gantt-header copy.d.ts.map
+gantt-header copy.js
+gantt-header copy.js.map
+gantt-header.d.ts
+gantt-header.d.ts.map
+gantt-header.js
+gantt-header.js.map
+gantt-resource.d.ts
+gantt-resource.d.ts.map
+gantt-resource.js
+gantt-resource.js.map
+gantt-row.d.ts
+gantt-row.d.ts.map
+gantt-row.js
+gantt-row.js.map
+.vscode/extensions.json
