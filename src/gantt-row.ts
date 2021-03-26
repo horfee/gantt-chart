@@ -29,6 +29,7 @@ export class GanttRow extends LitElement {
       newVal.progress != oldVal.progress || 
       newVal.duration != oldVal.duration ||
       newVal.start != oldVal.start ||
+      newVal.id != oldVal.id ||
       newVal.color != oldVal.color;
     }})
   data: Activity;
@@ -63,6 +64,9 @@ export class GanttRow extends LitElement {
   @property({attribute: false})
   getChildren: Function|undefined = undefined;
 
+  @property({type: Boolean, attribute: "highlighted"})
+  highLighted = false;
+
   static styles = css`
     :host {
       display: block;
@@ -79,6 +83,7 @@ export class GanttRow extends LitElement {
       user-select: none;
     }
 
+    :host([highlighted]) .grid .cell,
     .grid:hover .cell {
       background: lightgray;
       transition: background-color 0.3s ease;
@@ -115,7 +120,8 @@ export class GanttRow extends LitElement {
       pointer-events: painted;
     }
 
-    :host(:hover) {
+    :host(:hover),
+    :host([highlighted]) {
       --gantt-activity-border: 1px solid red;
       --gantt-activity-stroke-color: red;
     }
@@ -171,6 +177,9 @@ export class GanttRow extends LitElement {
     `;
   }
 
+  shouldUpdate(changedProperties) {
+    return super.shouldUpdate(changedProperties);
+  }
 
   dateIsWeekEnd(d: number) {
     const day = new Date(d).getDay();
@@ -190,17 +199,21 @@ export class GanttRow extends LitElement {
       return nbItem <= 0 ? 0 : nbItem;
     }
     nbItem = Math.floor(nbItem);
-
+    const totalWidth = this.dayWidth * nbItem;
+    console.log("Row : nbItem = " + nbItem + " dayWidth = " + this.dayWidth + " total = " + (nbItem * this.dayWidth));
     return html`
       <style>
         .cell {
+          /*
           width: ${this.dayWidth}px !important;
           min-width: ${this.dayWidth}px !important;
           max-width: ${this.dayWidth}px !important;
+          */
+          flex:1;
         }
       </style>
       
-      <div class="grid">${mustRenderCells ? Array(nbItem).fill(0).map( (_i, index) =>
+      <div class="grid" style="width:${totalWidth}px">${mustRenderCells ? Array(nbItem).fill(0).map( (_i, index) =>
         html`<div class="cell ${this.dateIsWeekEnd(this.startDate.getTime() + (index*ONEDAY)) ? 'weekend' : ''}"></div>`
     ): html`<div class="placeholder" style="width:${nbItem*this.dayWidth}px">&nbsp;</div>`}</div>`;
 
@@ -213,7 +226,7 @@ export class GanttRow extends LitElement {
 
 class GanttBaseActivity extends LitElement {
   
-  @Observer("triggerBoxModification")
+  @Observer("updateOffset")
   @property({type: Object,
     hasChanged: function(newVal?: Activity, oldVal?: Activity) {
       return (newVal !== undefined && oldVal === undefined) || 
@@ -221,6 +234,7 @@ class GanttBaseActivity extends LitElement {
       newVal.progress != oldVal.progress || 
       newVal.duration != oldVal.duration ||
       newVal.start != oldVal.start ||
+      newVal.id != oldVal.id ||
       newVal.color != oldVal.color;
     }})
   data: Activity;
@@ -248,8 +262,12 @@ class GanttBaseActivity extends LitElement {
   @property({type: String})
   color = 'lightgray';
 
+  private resolveDate(d: Date|Function): Date {
+    return d instanceof Function ? d() : d;
+  }
+
   get left() {
-    return this.dayWidth * (((this.data.start.getTime() - this.startDate.getTime()) / ONEDAY) - 1);
+    return this.dayWidth * (((this.resolveDate(this.data.start).getTime() - this.startDate.getTime()) / ONEDAY) - 1);
   }
 
   get center() {

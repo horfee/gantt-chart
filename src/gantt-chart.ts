@@ -12,15 +12,21 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import {LitElement, html, customElement, internalProperty, property, css} from 'lit-element';
+import {LitElement, html, customElement, internalProperty, property, css, query, queryAsync} from 'lit-element';
 import { Observer } from './PropertyObserver';
-import {Activity, Predecessor, ZoomLevel, Resource, ONEDAY, PredecessorType} from './gantt-common';
-import './gantt-header';
+import {Activity, GanttColumn, ZoomLevel, Resource, ONEDAY, PredecessorType} from './gantt-common';
+import './gantt-chart-header';
 import './gantt-row';
 import './gantt-constraint';
 import './gantt-resource';
+import './split-container';
+import './gantt-table';
 import { GanttRow } from './gantt-row';
 import { GanttConstraint } from './gantt-constraint';
+import { GanttChartHeader } from './gantt-chart-header';
+import { GanttTable } from './gantt-table';
+
+
 
 interface FlattenedConstraint {
   type: PredecessorType;
@@ -45,16 +51,19 @@ export class GanttChart extends LitElement {
   locale = navigator.language;
 
   @property({type: Object})
-  startDate: Date = new Date();
+  startDate: Date;
 
   @property({type: Object})
-  endDate: Date = new Date();
+  endDate: Date;
   
   @property({type: Number, reflect: true, attribute:'activity-line-height'})
   activityLineHeight = 24;
 
   @property({type: Number, reflect: true, attribute:'resource-line-height'})
   resourceLineHeight = 48;
+
+  @property({type: Array})
+  columns: Array<GanttColumn> = [];
 
   @Observer("onSelectedActivityChanged")
   @internalProperty()
@@ -66,13 +75,22 @@ export class GanttChart extends LitElement {
   zoomLevel = null;
   
   @internalProperty()
-  innerStartDate: Date = new Date();
+  innerStartDate: Date;
 
   @internalProperty()
-  innerEndDate: Date = new Date();
+  innerEndDate: Date;
   
-  @property({type: Boolean, attribute:'always-display-days', reflect: true})
-  alwaysDisplayDays = true;
+  @property({type: Boolean, attribute:'display-days', reflect: true})
+  displayDays = true;
+
+  @property({type: Boolean, attribute:'display-weeks', reflect: true})
+  displayWeeks = false;
+
+  @property({type: Boolean, attribute:'display-months', reflect: true})
+  displayMonths = true;
+
+  @property({type: Boolean, attribute:'display-years', reflect: true})
+  displayYears = true;
 
   @property({type: Boolean, attribute:'show-label-inside', reflect: true})
   displayLabelInside = false;
@@ -89,30 +107,57 @@ export class GanttChart extends LitElement {
   }
   
 
+  @queryAsync("#rowContainer")
+  rowContainerAsync: Promise<HTMLElement>;
+
+  @queryAsync("#splitter")
+  splitter: Promise<HTMLElement>;
+
+  @internalProperty()
+  dayWidth = 1.0;
+
+  private calculateDayWidth() {
+    this.rowContainerAsync.then( rowContainer => {
+      const containerWidth = parseInt(window.getComputedStyle(rowContainer || this).width);
+    
+      this.dayWidth = containerWidth / (Math.floor(( (this.innerEndDate?.getTime() || 0) - (this.innerStartDate?.getTime() || 0)) / ONEDAY));
+    
+      //dayWidth = dayWidth / this.zoom;
+      if ( this.dayWidth === Infinity || isNaN(this.dayWidth) ) return;
+      if ( this.zoomLevel !== null ) {
+        this.dayWidth *= this.zoomLevel;
+      }
+      if ( this.zoomLevel !== null && this.zoomLevel != ZoomLevel.L1 ) this.dayWidth = this._roundDayWidth(this.dayWidth);// Math.floor(dayWidth);
+    });
+  }
+
+  
+
   connectedCallback() {
     super.connectedCallback();
-    this.sizeObserver = new ResizeObserver( () => this.requestUpdate());
+    this.sizeObserver = new ResizeObserver( (_entries) => {
+      this.calculateDayWidth()
+      console.log("hello");
+    });// debounce(this.calculateDayWidth.bind(this),200) );
+    this.rowContainerAsync.then( _rowContainer => {
+      this.calculateDayWidth();  
+    });
     this.sizeObserver.observe(this);
     
+
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    this.sizeObserver.unobserve(this);
+    //this.sizeObserver.unobserve(this);
   }
 
   onSelectedActivityChanged(newValue: Activity|null|undefined, oldValue: Activity|null|undefined) {
     if ( oldValue ) {
-      oldValue?.predecessors.map( (elt: Predecessor) => elt.id).forEach( (id: number) => {
-        const line: HTMLElement | null | undefined = this.shadowRoot?.querySelector("#pred-" + oldValue.id + "-" + id);
-        line?.classList.remove("highlighted");
-      });
+      //oldValue.highlighted = false;
     }
     if ( newValue ) {
-      newValue.predecessors.map( (elt: Predecessor) => elt.id).forEach( (id: number) => {
-        const line: HTMLElement | null | undefined = this.shadowRoot?.querySelector("#pred-" + newValue.id + "-" + id);
-        line?.classList.add("highlighted");
-      });
+      //newValue.highLighted = true;
     }
   }
 
@@ -161,12 +206,19 @@ export class GanttChart extends LitElement {
 
   update(changedProperties: Map<string | number | symbol, unknown>) {
     super.update(changedProperties);
+    let alterDate = false;
     if ( changedProperties.has("startDate")) {
       this.innerStartDate = this.startDate;
+      alterDate = true;
     }
 
     if ( changedProperties.has("endDate")) {
       this.innerEndDate = this.endDate;
+      alterDate = true;
+    }
+
+    if ( changedProperties.has("zoomLevel") || (alterDate && this.innerStartDate && this.innerEndDate)) {
+      this.calculateDayWidth();
     }
   }
 
@@ -178,23 +230,9 @@ export class GanttChart extends LitElement {
     return intDaywidth + Math.floor(v) / 10;
   }
 
-
-  private get orderedActivities() {
-    return this.activities.sort( (a1: Activity, a2: Activity) => {
-      return a1.children && [...a1.children].indexOf(a2.id) > -1 ? -1 : a1.start < a2.start ? -1 : a1.start == a2.start ? 0 : 1;
-    }).sort();
-  }
   render() {
-    const svgWidth = parseInt(window.getComputedStyle(this).width);
-   
-    let dayWidth = svgWidth / (Math.floor(( this.innerEndDate.getTime() - this.innerStartDate.getTime()) / ONEDAY));
-    //dayWidth = dayWidth / this.zoom;
-    if ( dayWidth === Infinity || isNaN(dayWidth) ) return html ``;
-    if ( this.zoomLevel !== null ) {
-      dayWidth *= this.zoomLevel;
-    }
-    if ( this.zoomLevel !== null && this.zoomLevel != ZoomLevel.L1 ) dayWidth = this._roundDayWidth(dayWidth);// Math.floor(dayWidth);
-    
+    if ( this.dayWidth === undefined || this.dayWidth == 0 || isNaN(this.dayWidth) || this.dayWidth == Infinity ) return html``;
+
     const capacities = this.capacities.reduce ( (acc, capacity) => {
       if ( acc[capacity.type] === undefined ) acc[capacity.type] = [];
       acc[capacity.type].push(capacity);
@@ -220,30 +258,101 @@ export class GanttChart extends LitElement {
     const getChildren = (parent) => {
       return this.activities.filter( activity => (parent.children || []).indexOf(activity.id) > -1);
     };
-
+    
     return html`
       <h1>${this.title}!</h1>
       <div class="toolbar">
         <button @click="${this.zoomIn}" label="Zoom in">Zoom In</button>
         <button @click="${this.zoomOut}" value="Zoom out">Zoom Out</button>
       </div>
-      <div id="rowContainer">
-        <gantt-header .locale="${this.locale}" .alwaysDisplayDays="${this.alwaysDisplayDays}" .startDate="${this.startDate}" .endDate="${this.endDate}" .lineHeight="${this.activityLineHeight}" .dayWidth="${dayWidth}"></gantt-header>
-        ${this.orderedActivities.map( elt => 
-          html`<gantt-row .getChildren="${getChildren}" @box-changed="${this.onBoxChanged}" .labelAttribute="${this.labelAttribute}" id="${elt.id}" ?show-label="${this.displayLabel}" ?show-label-inside="${this.displayLabelInside}" .alwaysDisplayDays="${this.alwaysDisplayDays}" @dblclick="${this.focusOnActivity}" .startDate="${this.startDate}" .endDate="${this.endDate}" .data="${elt}" .lineHeight="${this.activityLineHeight}" .dayWidth="${dayWidth}"></gantt-row>`
-        )}
-        ${this.constraints.map(constraint =>
-          html`<gantt-constraint .activity="${constraint.activity}" type="${constraint.type}" .delay="${constraint.delay}" .predecessor="${constraint.predecessor}"></gantt-constraint>`
-        )}
-        ${Object.keys(capacities).map( key =>
-          html`<gantt-resource .loads="${loads[key] || []}" .lineHeight="${this.resourceLineHeight}" .startDate="${this.startDate}" .dayWidth="${dayWidth}" .endDate="${this.endDate}" .capacities="${capacities[key]}"></gantt-resource>`
-        )}
-      </div>
+      <split-container id="splitter" @splitter-dragend="${this.calculateDayWidth}">
+        <!-- Rendering tabular view -->
+        <div slot="primary">
+          <gantt-table id="table" @highlight-row="${this.highlightChartRow}" @unhighlight-row="${this.unhighlightChartRow}" @toggle-row="${this.toggleRow}" .capacities="${capacities}" .activities="${this.displayedActivities}" .activityLineHeight="${this.activityLineHeight}" .columns="${this.columns}"  .displayDays="${this.displayDays}" .displayWeeks="${this.displayWeeks}"  .displayMonths="${this.displayMonths}"  .displayYears="${this.displayYears}" ></gantt-table>
+        </div>
+        <!-- End of Rendering tabular view -->
+
+        <!-- Rendering chart view -->
+        <div slot="secondary" id="rowContainer">
+          <gantt-chart-header id="chartHeader" .locale="${this.locale}" .displayDays="${this.displayDays}" .displayWeeks="${this.displayWeeks}"  .displayMonths="${this.displayMonths}"  .displayYears="${this.displayYears}" .startDate="${this.startDate}" .endDate="${this.endDate}" .lineHeight="${this.activityLineHeight}" .dayWidth="${this.dayWidth}"></gantt-chart-header>
+          ${this.displayedActivities.map( elt => 
+            html`<gantt-row @mouseover="${this.highlightTableRow}" @mouseout="${this.unhighlightTableRow}" .getChildren="${getChildren}" @box-changed="${this.onBoxChanged}" .labelAttribute="${this.labelAttribute}" id="act${elt.id}" .displayLabel="${this.displayLabel}" .displayLabelInside="${this.displayLabelInside}" .displayDays="${this.displayDays}" .displayWeeks="${this.displayWeeks}" .displayMonths="${this.displayMonths}" .displayYears="${this.displayYears}" @dblclick="${this.onRowDoubleClick}" .startDate="${this.startDate}" .endDate="${this.endDate}" .data="${elt}" .lineHeight="${this.activityLineHeight}" .dayWidth="${this.dayWidth}"></gantt-row>`
+          )}
+          ${this.constraints.map(constraint =>
+            html`<gantt-constraint .activity="${constraint.activity}" type="${constraint.type}" .delay="${constraint.delay}" .predecessor="${constraint.predecessor}"></gantt-constraint>`
+          )}
+          ${Object.keys(capacities).map( key =>
+            html`<gantt-resource .loads="${loads[key] || []}" .lineHeight="${this.resourceLineHeight}" .startDate="${this.startDate}" .dayWidth="${this.dayWidth}" .endDate="${this.endDate}" .capacities="${capacities[key]}"></gantt-resource>`
+          )}
+        </div>
+        <!-- End of Rendering chart view -->
+      </split-container>
     `;
   }
 
+
+  @queryAsync("#table")
+  ganttTable: GanttTable;
+
+  private async highlightChartRow(highlightEvent: CustomEvent) {
+    const chart = await this.rowContainerAsync;
+    const row = chart.querySelector("#act" + highlightEvent.detail);
+    if ( row ) row.setAttribute("highlighted", "");
+  }
+
+  private async unhighlightChartRow(highlightEvent: CustomEvent) {
+    const chart = await this.rowContainerAsync;
+    const row = chart.querySelector("#act" + highlightEvent.detail);
+    if ( row ) row.removeAttribute("highlighted");
+  }
+
+  private async highlightTableRow(ev: MouseEvent){
+    if ( ev.currentTarget && (ev.currentTarget as GanttRow).data ) {
+      const table = await this.ganttTable;
+      table.highlightRow((ev.currentTarget as GanttRow).data.id);
+    }
+  }
+
+  private async unhighlightTableRow(ev: MouseEvent) {
+    if ( ev.currentTarget && (ev.currentTarget as GanttRow).data ) {
+      const table = await this.ganttTable;
+      table.unhighlightRow((ev.currentTarget as GanttRow).data.id);
+    }
+  }
+
+
+  @internalProperty()
+  treeNodesToHide: Array<number> = [];
+
+  private toggleRow(ev: CustomEvent) {
+    const activity = this.activities.find( val => val.id == ev.detail);
+    if ( !activity ) return;
+
+    const containsAll = (arr, target) => target.every(v => arr.includes(v));
+
+    const descendants = this.descendants(activity);
+    if ( containsAll(this.treeNodesToHide, descendants)) {
+      this.treeNodesToHide = this.treeNodesToHide.filter( val => (descendants).indexOf(val) == -1);
+    } else {
+      this.treeNodesToHide = this.treeNodesToHide.concat(descendants);
+    }
+   
+  }
+
+  private descendants(act: Activity): number[] {
+    let res = [];
+    res = res.concat(act.children||[]);
+    [...res].forEach( child => res = res.concat(this.descendants(this.activities.find( (act) => act.id == child))));
+    return res;
+  }
+
+
+  private get displayedActivities(): Array<Activity> {
+    return this.activities.filter( val => this.treeNodesToHide.indexOf(val.id) == -1);
+  }
+
   private get constraints(): Array<FlattenedConstraint> {
-    return this.activities.reduce( (acc, act) => acc.concat(act.predecessors.map( p => 
+    return this.activities.reduce( (acc, act) => acc.concat((act.predecessors||[]).map( p => 
       new Object({ 
         type: p.type,
         delay: p.delay || 0,
@@ -253,9 +362,11 @@ export class GanttChart extends LitElement {
 
   }
 
+  @query("#chartHeader")
+  header: GanttChartHeader;
+
   onBoxChanged(ev: CustomEvent) {
-    console.log(ev);
-    const headerHeight = parseFloat(window.getComputedStyle(this.shadowRoot.querySelector("gantt-header")).height);
+    const headerHeight = parseFloat(window.getComputedStyle(this.header).height);
     const id = ev.detail.activity;
     const box = ev.detail.rect;
     box.height = this.activityLineHeight;
@@ -269,22 +380,55 @@ export class GanttChart extends LitElement {
   }
 
 
-  focusOnActivity(ev: MouseEvent) {
-    const clickedActivity = ev.target as GanttRow;
-    const actOffset = clickedActivity.center;
-    const width = parseInt(window.getComputedStyle(this.shadowRoot.querySelector("#rowContainer")).width);
+  public async focusOnActivity(act?: Activity) {
+    const row: GanttRow = this.shadowRoot.querySelector("#act" + act.id);
+    if ( row && row.data && row.data.id === act.id) {
+      const actOffset = row.center;
 
-    this.shadowRoot.querySelector("#rowContainer").scrollLeft =  actOffset - width / 2;
-
+      const rowContainer = await this.rowContainerAsync;
+      const width = parseInt(window.getComputedStyle(rowContainer).width);
+      rowContainer.scrollLeft =  actOffset - width / 2;
+      //.then( rowContainer => {
+      
+      // });
+    }
   }
 
+  private onRowDoubleClick(ev: MouseEvent) {
+    const clickedActivity = ev.target as GanttRow;
+    this.focusOnActivity(clickedActivity.data);
+  }
+
+  /*
+  shouldUpdate(changedProperties) {
+    return changedProperties.has("dayWidth") ||
+    changedProperties.has("columns") ||
+    changedProperties.has("activityes") ||
+    changedProperties.has("activityLineHeight") ||
+    changedProperties.has("endDate") ||
+    changedProperties.has("locale") ||
+    changedProperties.has("title") ||
+    changedProperties.has("capacities");
+
+  }
+  */
+
   zoomIn(_ev: MouseEvent) {
-    this.zoomLevel = Math.min(ZoomLevel.L15, this.zoomLevel === null ?  ZoomLevel.L1 + 2 : this.zoomLevel + 1);
+    this.rowContainerAsync.then( rowContainer => {
+      const width = parseInt(window.getComputedStyle(rowContainer.firstElementChild).width);
+      const ratio = rowContainer.scrollLeft / width;
+      //rowContainer.scrollLeft =  actOffset - width / 2;
+      this.updateComplete.then( () => {
+        const width = parseInt(window.getComputedStyle(rowContainer.firstElementChild).width);
+        rowContainer.scrollLeft = width * ratio;
+      });
+    });
+    this.zoomLevel = Math.min(ZoomLevel.L15, (this.zoomLevel || ZoomLevel.L1) + 1);
 
   }
 
   zoomOut(_ev: MouseEvent) {
-    this.zoomLevel = Math.max(ZoomLevel.L1, this.zoomLevel === null ?  1 : this.zoomLevel - 1);
+    this.zoomLevel = Math.max(ZoomLevel.L1, (this.zoomLevel || ZoomLevel.L1) - 1);
   }
 
 }

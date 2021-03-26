@@ -19,8 +19,8 @@ import {getTextWidth} from './gantt-common';
 //import './PropertyObserver';
 //import { Observer } from './PropertyObserver';
 
-@customElement('gantt-header')
-export class GanttHeader extends LitElement {
+@customElement('gantt-chart-header')
+export class GanttChartHeader extends LitElement {
 
   @property({type: String})
   locale = navigator.language;
@@ -35,8 +35,19 @@ export class GanttHeader extends LitElement {
   dayWidth = 10.0;
 
   @property({type: Boolean})
-  alwaysDisplayDays = true;
+  displayDays = true;
 
+  @property({type: Boolean})
+  displayWeeks = true;
+
+  @property({type: Boolean})
+  displayMonths = true;
+
+  @property({type: Boolean})
+  displayYears = true;
+
+  @property({type: Number})
+  lineHeight = 24.0;
 
 
   static styles = css`
@@ -102,12 +113,18 @@ export class GanttHeader extends LitElement {
       box-sizing: border-box;
     }
 
+    .year-0 .month-0 .day:first-of-type {
+      border-left: 0px;
+    }
+
     .year-0 .month-0 .day-0 {
       border-left: 1px solid transparent;
     }
   `;
 
   getYears() {
+    if ( this.startDate === undefined ) return [];
+
     let y = this.startDate.getFullYear();
     const years = [];
     let d = new Date(this.startDate);
@@ -180,10 +197,11 @@ export class GanttHeader extends LitElement {
 
   render() {
     const data = this.getYears();
-    const font = window.getComputedStyle(this).font;
-    const textFitDay = getTextWidth("30",font) < this.dayWidth;
-    const mustRenderCells = this.alwaysDisplayDays  || textFitDay; 
+    //const font = window.getComputedStyle(this).font;
+    //const textFitDay = getTextWidth("30",font) < this.dayWidth;
+    //const mustRenderDaysCells = this.displayDays;//  || textFitDay; 
 
+    //const totalWidth = data.length == 0 ? 0 : this.dayWidth * (data.map( year => year.nbDays).reduce( (acc, val) => acc + val));
     return html`
       <style>
 
@@ -192,18 +210,19 @@ export class GanttHeader extends LitElement {
           min-width: ${this.dayWidth}px;
           max-width: ${this.dayWidth}px;
         }
+
       </style>
-      <div class="flexbox row">
+      <div class="flexbox row" style="width:100%">
       ${data.map( (year, yIndex) => {
         return html `
           <div class="flexbox year-${yIndex} column flex">
-            <div class="gridrow year year-${yIndex} text-center" style="width:${year.nbDays * this.dayWidth}px"><div>${year.year}</div></div>
-            <div class="flexbox row">
+            <div class="gridrow year year-${yIndex} text-center" style="box-sizing:border-box; ${!this.displayYears ? 'display: none;': ''}height:${this.lineHeight}px;width:${year.nbDays * this.dayWidth}px"><div style="height: 100%;">${year.year}</div></div>
+            <div class="flexbox row" style="box-sizing:border-box; ">
               ${year.months.map( (month, index) => html`
-                <div class="flex month-${index}" style="width:${month.nbDays * this.dayWidth}px">
+                <div class="flex month-${index}" style="box-sizing:border-box; width:${month.nbDays * this.dayWidth}px">
                   <div class="flexbox column">
-                    <div class="gridrow flex text-center"><div class="month month-${index}" >${month.month}</div></div>
-                    ${mustRenderCells ? html`<div class="gridrow flexbox row flex">${ month.days.map( (v) => html`<div class="flex day day-${v} text-center">${v}</div>`)}</div>`
+                    <div class="gridrow flex text-center"><div class="month month-${index}" style="${!this.displayYears ? 'display: none;': ''}box-sizing:border-box; height:${this.lineHeight}px;">${month.month}</div></div>
+                    ${this.displayDays ? html`<div class="gridrow flexbox row flex" style="height:${this.lineHeight}px;">${ month.days.map( (v) => html`<div class="flex day day-${v} text-center">${v}</div>`)}</div>`
                     : ''}
                   </div>
                 </div>`)}
@@ -223,7 +242,7 @@ export class GanttHeader extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'gantt-header': GanttHeader;
+    'gantt-chart-header': GanttChartHeader;
   }
 }
 

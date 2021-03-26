@@ -65,16 +65,17 @@ export class GanttConstraint extends LitElement {
 
 
   render() {
+    
     return html`
       <div style="box-sizing:border-box;position:absolute;left:${this.rect.left}px;top:${this.rect.top}px;width:${this.rect.width}px;height:${this.rect.height}px;">
         <svg class="drawing">
           <defs>
             <marker id="arrowhead" markerWidth="7" markerHeight="7" 
-            refX="7" refY="3.5" orient="auto">
+            refX="5" refY="3.5" orient="auto">
               <polygon points="0,0 7,3.5 0,7" />
             </marker>
           </defs>
-          <polyline points="${ this.points.map( elt => elt.x +"," + elt.y).join( " " ) }" marker-end="url(#arrowhead)" fill="none" stroke="black"/>
+          <polyline points="${ this.points.map( (elt) => elt.x +"," + elt.y).join( " " ) }" marker-end="url(#arrowhead)" fill="none" stroke="black"/>
         </svg>
       </div>
     `;
@@ -82,6 +83,11 @@ export class GanttConstraint extends LitElement {
   }
 
   spacer = 5;
+
+  private get resolvedDelay() {
+    return this.delay * this.dayWidth;
+  }
+
   private onTypeChanged() {
     if ( this.resolvedActivity === undefined || this.resolvedPredecessor === undefined ) return;
     if ( this.type === PredecessorType.FF ) this.calculatePointFF();
@@ -89,10 +95,6 @@ export class GanttConstraint extends LitElement {
     if ( this.type === PredecessorType.SS ) this.calculatePointSS();
     if ( this.type === PredecessorType.SF ) this.calculatePointSF();
     //this["calculatePoint" + PredecessorType[this.type]]();  // this way is working, but trigger warnings in typescript
-  }
-
-  private get resolvedDelay() {
-    return this.delay * this.dayWidth;
   }
 
   private calculatePointFS() {
@@ -185,6 +187,7 @@ export class GanttConstraint extends LitElement {
       this.rect.y = this.resolvedActivity.bottom;
       this.rect.height = this.resolvedPredecessor.bottom - this.resolvedActivity.bottom;
     }
+    this.rect.height += this.spacer;
     // end of boundaries calculation
 
     if ( this.resolvedPredecessor.left - this.spacer <= this.resolvedActivity.right ) {
@@ -257,7 +260,9 @@ export class GanttConstraint extends LitElement {
       this.rect.y = this.resolvedActivity.bottom;
       this.rect.height = this.resolvedPredecessor.bottom - this.resolvedActivity.bottom;
     }
+    this.rect.height += this.spacer;
     // end of boundaries calculation
+
     if ( this.resolvedPredecessor.right + this.resolvedDelay + this.spacer <= this.resolvedActivity.right ) {
       if ( this.resolvedPredecessor.top < this.resolvedActivity.top ) {
         const p1 = {x:0, y: this.resolvedPredecessor.height / 2};
@@ -395,176 +400,6 @@ export class GanttConstraint extends LitElement {
     if ( id == this.activity || id == this.predecessor) this.onTypeChanged();
   }
 
-  // private onActivityChanged(_ev) {   
-  //   //const container = this.activityContainer.shadowRoot.getElementById("rowContainer");
-  //   const activity = this.resolvedActivity;
-  //   const predecessor = this.resolvedPredecessor;
-  //   //const delay = (this.delay || 0) * this.dayWidth;
-  //   const points = [];
-  //   const spacing = 12;
-
-  //   const containerRec = container.getBoundingClientRect();
-
-  //   const actRect = {
-  //     left : activity.left,
-  //     right: activity.right,
-  //     top: activity.getBoundingClientRect().top - containerRec.top,
-  //     bottom: activity.getBoundingClientRect().bottom,
-  //     height: activity.getBoundingClientRect().height,
-  //     midY: activity.getBoundingClientRect().top + activity.getBoundingClientRect().height / 2
-  //   };
-  //   const predRect = {
-  //     left : predecessor.left,
-  //     right: predecessor.right,
-  //     top: predecessor.getBoundingClientRect().top - containerRec.top,
-  //     bottom: predecessor.getBoundingClientRect().bottom,
-  //     height: predecessor.getBoundingClientRect().height,
-  //     midY: predecessor.getBoundingClientRect().top + predecessor.getBoundingClientRect().height / 2
-  //   };
-  //   if (this.type == PredecessorType.FS ) {
-  //     points.push({
-  //       x:predRect.right, 
-  //       y:predRect.midY});
-  //     if (predRect.right < actRect.left && (actRect.left - predRect.right) > (2 * spacing)) {
-  //         points.push({
-  //           x:predRect.right + Math.abs(predRect.right - actRect.left) / 2 + 1,
-  //           y:predRect.midY});
-  //     }
-  //     else if (predRect.right + spacing > actRect.left - spacing) {
-  //         points.push({
-  //           x:predRect.right + spacing,
-  //           y:predRect.midY});
-  //         points.push({
-  //           x:predRect.right + spacing,
-  //           y:predRect.bottom + (actRect.top - predRect.bottom) / 2 + 1});
-  //     }
-  //     else if (predRect.right > actRect.left) {
-  //         points.push({
-  //           x:predRect.right + spacing,
-  //           y:predRect.midY});
-  //     }
-  //     if (predRect.right < actRect.left && (actRect.left - predRect.right) > (2 * spacing)) {
-  //         points.push({
-  //           x:actRect.left - Math.abs(predRect.right - actRect.left) / 2 + 1,
-  //           y:actRect.midY});
-  //     }
-  //     else if (predRect.right + spacing > actRect.left - spacing) {
-  //         points.push({
-  //           x:actRect.left - spacing,
-  //           y:predRect.bottom + (actRect.top - predRect.bottom) / 2 + 1});
-  //         points.push({
-  //           x:actRect.left - spacing,
-  //           y:actRect.midY});
-  //     }
-  //     else if (predRect.right > actRect.left) {
-  //         points.push({
-  //           x:actRect.left - spacing,
-  //           y:actRect.midY});
-  //     }
-  //     points.push({
-  //       x:actRect.left,
-  //       y:actRect.midY});
-  // }
-  // else if (this.type == PredecessorType.FF ) {
-  //     points.push({
-  //       x:predRect.right,
-  //       y:predRect.midY});
-  //     if (predRect.right < actRect.right + spacing) {
-  //         points.push({
-  //           x:actRect.right + spacing,
-  //           y:predRect.midY});
-  //     }
-  //     else if (predRect.right + spacing > actRect.right + spacing) {
-  //         points.push({
-  //           x:predRect.right + spacing,
-  //           y:predRect.midY});
-  //         points.push({
-  //           x:predRect.right + spacing,
-  //           y:actRect.midY});
-  //     }
-  //     else if (predRect.right > actRect.left) {
-  //         points.push({
-  //           x:predRect.right + spacing,
-  //           y:predRect.midY});
-  //     }
-  //     points.push({
-  //       x:actRect.right + spacing,
-  //       y:actRect.midY});
-  //     points.push({
-  //       x:actRect.right,
-  //       y:actRect.midY});
-  // }
-  // else if (this.type == PredecessorType.SS ) {
-  //     points.push(predRect.left);
-  //     points.push(predRect.midY);
-  //     if (predRect.left > actRect.left - spacing) {
-  //         points.push(actRect.left - spacing);
-  //         points.push(predRect.midY);
-  //         points.push(actRect.left - spacing);
-  //         points.push(actRect.midY);
-  //     }
-  //     else {
-  //         points.push(predRect.left - spacing);
-  //         points.push(predRect.midY);
-  //         points.push(predRect.left - spacing);
-  //         points.push(actRect.midY);
-  //     }
-  //     points.push(actRect.left);
-  //     points.push(actRect.midY);
-  // }
-  // else if (this.type == PredecessorType.SF) {
-  //     points.push(predRect.left);
-  //     points.push(predRect.midY);
-  //     if (predRect.left - spacing > actRect.right + spacing) {
-  //         points.push(predRect.left - (predRect.left - actRect.right) / 2 + 1);
-  //         points.push(predRect.midY);
-  //         points.push(predRect.left - (predRect.left - actRect.right) / 2 + 1);
-  //         points.push(actRect.midY);
-  //     }
-  //     else {
-  //         points.push(predRect.left - spacing);
-  //         points.push(predRect.midY);
-  //         points.push(predRect.left - spacing);
-  //         points.push(predRect.top - (predRect.top - actRect.bottom) / 2 + 1);
-  //         points.push(actRect.right + spacing);
-  //         points.push(predRect.top - (predRect.top - actRect.bottom) / 2 + 1);
-  //         points.push(actRect.right + spacing);
-  //         points.push(actRect.midY);
-  //     }
-  //     points.push(actRect.right);
-  //     points.push(actRect.midY);
-  // }
-
-  //   const min = points.reduce( (acc,val) => new Object({ x: Math.min(acc.x, val.x), y: Math.min(acc.y, val.y)}), {x:Infinity,y:Infinity});
-  //   const max = points.reduce( (acc,val) => new Object({ x: Math.max(acc.x, val.x), y: Math.max(acc.y, val.y)}), {x:0,y:0});
-  //   //points = points.map( elt => new Object({x: elt.x - points[0].x, y: elt.y - points[0].y}));
-    
-  //   /*
-  //   if ( this.type == PredecessorType.FS ) {
-  //     points.push({ x : predecessor.right, y : predRect.top + (predRect.height / 2)});
-  //     points.push({ x : predecessor.right + delay, y : predRect.top + (predRect.height / 2)});
-
-  //     if ( predecessor.right + delay + degagement < activity.left ) {
-  //       min = {x: predecessor.right};
-  //     } else {
-  //       min = {x: activity.right};
-  //     }
-  //     points.push({ x : predecessor.right + delay + degagement, y : predRect.top + (predRect.height / 2)});
-
-  //     points.push({ x : activity.left - degagement, y : actRect.top + (actRect.height / 2)});
-  //     points.push({ x : activity.left, y : actRect.top + (actRect.height / 2)});
-    
-      
-  //   }*/
-
-    
-  //   this.style.setProperty("left", (min.x - 1) + "px");
-  //   this.style.setProperty("top", (Math.min(predRect.top, actRect.top)) + "px");
-  //   this.style.setProperty("width", (max.x - min.x) + "px");
-  //   this.style.setProperty("height", (max.y - min.y + actRect.height) + "px");
-
-  //   this.points = points.map( elt => new Object({x : elt.x - min.x, y : elt.y - min.y + actRect.height / 2}));
-  // }
 
 }
 

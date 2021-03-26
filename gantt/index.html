@@ -5,11 +5,27 @@
     <meta charset="utf-8">
     <title>&lt;my-element> Demo</title>
     <script type="module" src="../gantt-chart.js"></script>
+    <script type="module">
+      import {html, render} from "../node_modules/lit-html/lit-html.js";
+      import {themeStyles} from "../theme.js";
+      
+      
+      render(themeStyles, document.getElementById("theme"));
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style id="theme">
 
+    </style>
+    <style>
+      @media print {
+        @page {
+          size: A0 landscape;
+        }
 
-<style>
-          @media print{@page {size: landscape}}
+        gantt-chart {
+          width: 100%;
+        }
+      }
 
       html {
         -webkit-text-size-adjust: 100%;
@@ -24,9 +40,8 @@
         
       }
 
-
       gantt-chart {
-        width: 1024px;
+        width: 100%;
 
       }
     </style>
@@ -40,7 +55,8 @@
     <input type="checkbox" id="showlabelinside">
     <gantt-chart id="gantt">
     </gantt-chart>
-    <script type="text/javascript">
+    <script type="module">
+      import {SimpleActivity} from '../simple-activity.js';
 
       let cb = document.getElementById("alwaysdisplaydays");
       var gantt = document.getElementById("gantt");
@@ -62,19 +78,29 @@
         gantt.displayLabelInside = ev.target.checked;
       });
       
+      const fmt = new Intl.DateTimeFormat(navigator.language, {year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit"});
+      const dateFormatter = function(val) {
+        return fmt.format(val);
+      };
+
+      gantt.columns = [
+        { field: "name", label: "Name"}, 
+        { field: "start", label: "Start", formatter: dateFormatter},
+        { field: function(activity){
+          return new Date(activity.start.getTime() + activity.duration * 24*3600 * 1000);
+        }, label: "End", formatter: dateFormatter},
+        { field: "duration", label: "Duration", formatter: function(val) {
+            var seconds = parseInt(val * 24 * 60 * 60),
+            h = (seconds - seconds % 3600) / 3600,
+            m = (seconds - seconds % 60) / 60 % 60,
+            s = seconds % 60;
+          return (seconds < 0 ? '-' : '') + (h > 0 ? h + ':' : '') + ("00" + m).slice(-2) + ':' + ("00" + s).slice(-2);// + "s";
+        }}];
+
+      console.log(gantt.columns[3].formatter(1/59.5));
       gantt.startDate = new Date("2019-12-28T00:00:00");
       gantt.endDate = new Date("2020-01-20T23:59:59");
-      var centralTask = {
-        id: 5, 
-        name: "Activity n°5", 
-        start: new Date("2020-01-05T00:00:00"), 
-        duration: 1, 
-        color: "green",
-        resources: [
-          {type: "chef",quantity: 1, duration: 1, start: new Date("2020-01-05T00:00:00")}
-        ]
-      };
-      centralTask.predecessors = [
+      //centralTask.predecessors = [
       // { type: 'FS', id: 1},
       // { type: 'FS', id: 2},
       // { type: 'FS', id: 3},
@@ -108,26 +134,23 @@
       // { type: 'SF', id: 4},
       // { type: 'SF', id: 6},
       // { type: 'SF', id: 7},
-      { type: 'SF', id: 8},
+      //{ type: 'SF', id: 8},
       // { type: 'SF', id: 9}
-      ]
+      //]
       var data = [
-        {id: 1, name(){ return "fn Activity n°1"}, start: new Date("2020-01-01T12:00:00"), duration: 1, predecessors: [], color: "green", progress: 0.5},
-        {id: 2, isHeader: true, name: "Activity n°2", start: new Date("2020-01-04T12:00:00"), duration: 1, predecessors: [], color: "magenta"},
-        {id: 3, name: "Activity n°3", start: new Date("2020-01-06T00:00:00"), duration: 1, predecessors: [], color: "#DEDEDE"},
-        {id: 4, name: "Activity n°4", start: new Date("2020-01-10T00:00:00"), duration: 1, predecessors: [], color: "darkblue"},
-        centralTask,
-        {id: 6, name: "Activity n°6", start: new Date("2020-01-05T12:00:00"), duration: 1, predecessors: [], color: "green",resources: [
-          {type: "chef",quantity: 1, duration: 1, start: new Date("2020-01-05T12:00:00")}
-          ],
-          children: [4,5]
-        },
-        {id: 7, name: "Activity n°7", start: new Date("2020-01-10T00:00:00"), duration: 1, predecessors: [], color: "green"},
-        {id: 8, name: "Activity n°8", start: new Date("2020-01-01T12:00:00"), duration: 1, predecessors: [], color: "green"},
-        {id: 9, name: "Activity n°9", start: new Date("2020-01-04T14:00:00"), duration: 1, predecessors: [], color: "green",resources: [
+        new SimpleActivity({id: 1, name(){ return "fn Activity n°1"}, start: new Date("2020-01-01T12:00:00"), duration: 1, predecessors: [], color: "green", progress: 0.5}),
+        new SimpleActivity({id: 2, isHeader: true, name: "Activity n°2", start: new Date("2020-01-04T12:00:00"), duration: 1, predecessors: [], color: "magenta"}),
+        
+        new SimpleActivity({id: 6, name: "Activity n°6", start: new Date("2020-01-05T12:00:00"), duration: 1, predecessors: [], color: "green",resources: [{type: "chef",quantity: 1, duration: 1, start: new Date("2020-01-05T12:00:00")}], children: [4,5]}),
+        new SimpleActivity({id: 4, name: "Activity n°4", start: new Date("2020-01-10T00:00:00"), duration: 1, predecessors: [], color: "darkblue", children:[3]}),
+        new SimpleActivity({id: 3, name: "Activity n°3", start: new Date("2020-01-06T00:00:00"), duration: 1, predecessors: [], color: "#DEDEDE"}),
+        new SimpleActivity({id: 5, name: "Activity n°5", start: new Date("2020-01-05T00:00:00"), duration: 1, color: "green", resources: [ {type: "chef",quantity: 1, duration: 1, start: new Date("2020-01-05T00:00:00")}]}),
+        new SimpleActivity({id: 7, name: "Activity n°7", start: new Date("2020-01-10T00:00:00"), duration: 1, predecessors: [], color: "green"}),
+        new SimpleActivity({id: 8, name: "Activity n°8", start: new Date("2020-01-01T12:00:00"), duration: 1, predecessors: [], color: "green"}),
+        new SimpleActivity({id: 9, name: "Activity n°9", start: new Date("2020-01-04T14:00:00"), duration: 1, predecessors: [], color: "green",resources: [
           {type: "chef",quantity: 3, duration: 1, start: new Date("2020-01-04T14:00:00")},
           {type: "stagiaire",quantity: 1, duration: 1, start: new Date("2020-01-04T14:00:00")}
-        ]},
+        ]}),
       ];
       /*
       for(var i = 1; i <= 31; i++ ) {

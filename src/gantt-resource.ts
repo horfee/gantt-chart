@@ -17,7 +17,7 @@ import {Resource, ONEDAY} from './gantt-common';
 
 
 interface AggregatedResource {
-  start: Date;
+  start: Date|Function;
   end: Date;
   duration: number;
   quantity: number;
@@ -74,16 +74,26 @@ export class GanttResource extends LitElement {
   `;
 
 
+  private resolveDate(d: Date|Function): Date {
+    return d instanceof Function ? d() : d;
+  }
+
+  private resolveDuration(d: number|Function): number {
+    return d instanceof Function ? d() : d;
+  }
+
   leftOf(res: Resource|AggregatedResource) {
-    return this.dayWidth * (((res.start.getTime() - this.startDate.getTime()) / ONEDAY) - 1);
+    return this.dayWidth * (((this.resolveDate(res.start).getTime() - this.startDate.getTime()) / ONEDAY) - 1);
   }
 
   private get stackedLoads(): Array<AggregatedResource> {
     let dates = [];
 
     this.loads.forEach( load => {
-      if (dates.indexOf(load.start.getTime()) == -1 ) dates.push(load.start.getTime());
-      if (dates.indexOf(load.start.getTime() + load.duration * ONEDAY) == -1 ) dates.push(load.start.getTime() + load.duration * ONEDAY);      
+      const d = this.resolveDate(load.start); 
+      const duration = this.resolveDuration(load.duration);
+      if (dates.indexOf(d.getTime()) == -1 ) dates.push(d.getTime());
+      if (dates.indexOf(d.getTime() + duration * ONEDAY) == -1 ) dates.push(d.getTime() + duration * ONEDAY);      
     });
     dates = dates.sort();
 
@@ -99,10 +109,11 @@ export class GanttResource extends LitElement {
 
     for(const load of this.loads) {
       for(const r of res) {
-        const end = new Date(load.start.getTime() + load.duration * ONEDAY);
-        if ( (load.start > r.start && load.start < r.endTmp) 
+        const start = this.resolveDate(load.start);
+        const end = new Date(start.getTime() + this.resolveDuration(load.duration) * ONEDAY);
+        if ( (start > r.start && start < r.endTmp) 
         || (end > r.start && end < r.end)
-        || (load.start <= r.start && end >= r.end )) { 
+        || (start <= r.start && end >= r.end )) { 
           r.quantity += load.quantity;
         }
       }
@@ -124,14 +135,15 @@ export class GanttResource extends LitElement {
     const width = this.dayWidth * nbItem;
 
     const canBeCovered = (res: AggregatedResource) => {
-      const filtered = this.capacities.filter( (resource) => resource.quantity >= res.quantity && resource.start <= res.start && new Date(resource.start.getTime() + resource.duration * ONEDAY) >= res.end);
+      const filtered = this.capacities.filter( (resource) => resource.quantity >= res.quantity && resource.start <= res.start && new Date(this.resolveDate(resource.start).getTime() + this.resolveDuration(resource.duration) * ONEDAY) >= res.end);
       return filtered.length > 0;
     }
+    console.log("Resource : nbItem = " + nbItem + " dayWidth = " + this.dayWidth + " total = " + width);
     return html`
-      <div style="width:${width}px;height:${this.lineHeight}px">
+      <div style="width:${width}px;max-width:${width}px;min-width:${width}px;height:${this.lineHeight}px">
         <div style="width: 100%; height: 100%;margin-top: 4px; position: relative;">
           ${this.capacities.map( res => html`
-            <div class="capacity" title="${res.quantity}" style="left:${this.leftOf(res)}px; width:${res.duration * this.dayWidth}px; height:${res.quantity * 100 / maxQty}%"></div>
+            <div class="capacity" title="${res.quantity}" style="left:${this.leftOf(res)}px; width:${this.resolveDuration(res.duration) * this.dayWidth}px; height:${res.quantity * 100 / maxQty}%"></div>
           `)}
           ${stackedResources.map( res => html`
           <div class="load ${!canBeCovered(res) ? "invalid" : ""}" title="${res.quantity}" style="left:${this.leftOf(res)}px; width:${res.duration * this.dayWidth}px; height:${res.quantity * 100 / maxQty}%"></div>

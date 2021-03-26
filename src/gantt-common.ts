@@ -23,9 +23,16 @@ export enum DisplayMode {
 
 export const ONEDAY = 86400000; 
 
-export enum ZoomLevel {
+export const enum ZoomLevel {
   L1 = 1, L2, L3, L4, L5, L6, L7, L8, L9, L10, L11, L12, L13, L14, L15,
   
+}
+
+
+export declare interface GanttColumn {
+  field: string|Function;
+  label: string;
+  formatter?: Function;
 }
 
 export enum PredecessorType {
@@ -41,12 +48,12 @@ export declare interface Predecessor {
 export declare interface Resource {
   type: string;
   quantity: number;
-  start?: Date;
-  duration?: number;
+  start?: Date|Function;
+  duration?: number|Function;
 }
 
 export declare interface Activity {
-  start: Date;
+  start: Date|Function;
   duration: number;
   id: number;
   name?: string|Function;
